@@ -10,9 +10,20 @@ Add-Type -AssemblyName System.Windows.Forms
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
 Clear-Host
-Write-Output "====================================================================="
-Write-Output "          MelodyGX Hardened Deployment Architecture                  "
-Write-Output "====================================================================="
+$LogoArt = @"
+=====================================================================
+ __  ___      __           __        _______  __ 
+/  |/  /___  / /___  _____/ /_  __  / ____/ |/ / 
+/ /|_/ / __ \/ / __ \/ __  / / / / / / / __ |   /  
+/ /  / / /_/ / / /_/ / /_/ / / /_/ / / /_/ / /   |  
+/_/  /_/\____/_/\____/\__,_/_/\__, /  \____/_/|_\_\ 
+                             /____/                 
+=====================================================================
+                     OFFICIAL PORTABLE INSTALLER
+=====================================================================
+"@
+
+Write-Output $LogoArt
 Write-Output ""
 
 # STEP 1: Инициализация окружения
@@ -86,14 +97,14 @@ try {
     Write-Output "[ WARNING    ] Failed to force write configuration flag."
 }
 
-# STEP 7: Точечная инъекция кастомного профиля (Исправление путей)
+# STEP 7: Точечная инъекция кастомного профиля (Извлечение из подпапки data)
 Write-Output "[ STEP 7 / 8 ] Injecting optimized user environment state matrix..."
 $ProfileDir = "$TargetDir\profile\data\Default"
 if (!(Test-Path $ProfileDir)) {
     New-Item -ItemType Directory -Path $ProfileDir | Out-Null
 }
 
-$LocalPrefSource = "$ScriptDir\profile\Default"
+$LocalPrefSource = "$ScriptDir\profile\data\Default"
 if (Test-Path $LocalPrefSource) {
     if (Test-Path "$LocalPrefSource\Preferences") {
         Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $ProfileDir -Force
