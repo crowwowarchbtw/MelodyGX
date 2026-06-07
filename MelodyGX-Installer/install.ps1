@@ -36,7 +36,7 @@ try {
 
     # Step 2: Загрузка ядра
     Write-Host "[ DOWNLOAD ] Connecting to distribution servers..." -ForegroundColor Gray
-    $DownloadUrl = "https://net.geo.opera.com/ftp/pub/opera_gx/131.0.5877.84/win/Opera_GX_131.0.5877.84_Setup_x64.exe"
+    $DownloadUrl = "https://get.opera.com/pub/opera_gx/115.0.5322.152/win/Opera_GX_115.0.5322.152_Setup_x64.exe"
     Write-Host "[ DOWNLOAD ] Downloading clean Chromium core..." -ForegroundColor Yellow
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempInstaller
     Write-Host "[ SUCCESS  ] Core package saved to temporary cache." -ForegroundColor Green
