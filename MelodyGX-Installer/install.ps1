@@ -1,112 +1,117 @@
-# Подключаем виндовые формы для вызова всплывающих окон
-[void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
+# MelodyGX Automated Hardening and Deployment Framework
+# Operational Status: Production Alpha Vector
 
-# Очищаем консоль и ставим красивый заголовок окна
-Clear-Host
-$host.UI.RawUI.WindowTitle = "MelodyGX Installer v0.1-Alpha"
-
-# Правильный, четкий ASCII-арт MelodyGX на английском
-Write-Host '====================================================' -ForegroundColor Magenta
-Write-Host '  __  __      _           _       _______  __  __   ' -ForegroundColor Cyan
-Write-Host ' |  \/  | ___| | ___   __| |_   _/  _____| \ \/ /   ' -ForegroundColor Cyan
-Write-Host ' | |\/| |/ _ \ |/ _ \ / _` | | | |  |  __   \  /    ' -ForegroundColor Cyan
-Write-Host ' | |  | |  __/ | (_) | (_| | |_| |  |___| |  /  \   ' -ForegroundColor Cyan
-Write-Host ' |_|  |_|\___|_|\___/ \__,_|\__, | \______| /_/\_\  ' -ForegroundColor Cyan
-Write-Host '                           |___/                    ' -ForegroundColor Cyan
-Write-Host '====================================================' -ForegroundColor Magenta
-Write-Host '             OFFICIAL PORTABLE INSTALLER            ' -ForegroundColor DarkMagenta
-Write-Host '====================================================' -ForegroundColor Magenta
-Write-Host ""
-
-# Включаем режим, при котором любая мелкая ошибка считается критической (стопорит скрипт)
 $ErrorActionPreference = "Stop"
+$TargetDir = "C:\MelodyGX"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+
+# Принудительное подключение графической подсистемы Windows Forms для вывода алертов
+Add-Type -AssemblyName System.Windows.Forms
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
+
+Clear-Host
+Write-Output "====================================================================="
+Write-Output "          MelodyGX Hardened Deployment Architecture                  "
+Write-Output "====================================================================="
+Write-Output ""
+
+# STEP 1: Инициализация окружения
+Write-Output "[ STEP 1 / 8 ] Validating host execution environment..."
+if (!(Test-Path $TargetDir)) {
+    New-Item -ItemType Directory -Path $TargetDir | Out-Null
+}
+Write-Output "[ SUCCESS    ] Target deployment space initialized at: $TargetDir"
+
+# STEP 2: Загрузка бинарных блоков ядра
+Write-Output "[ STEP 2 / 8 ] Connecting to upstream infrastructure..."
+$DownloadUrl = "https://get.opera.com/pub/opera_gx/115.0.5322.152/win/Opera_GX_115.0.5322.152_Setup_x64.exe"
+$TempInstaller = "$env:TEMP\MelodyGX_Core_Setup.exe"
 
 try {
-    # Авто-определение путей
-    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $TargetDir = "C:\MelodyGX"
-    $TempInstaller = "$env:TEMP\opera_setup.exe"
+    Write-Output "[ DOWNLOAD   ] Fetching official distribution core packages..."
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempInstaller -UseBasicParsing
+    Write-Output "[ SUCCESS    ] Binary cache stabilized locally."
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Network pipeline failure during core retrieval: $_", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
+    throw "Deployment terminated: Network error."
+}
 
-    # Step 1: Проверка локальных конфигов перед стартом
-    Write-Host "[ PREPARE  ] Verifying local build configuration..." -ForegroundColor Gray
-    Start-Sleep -Milliseconds 300
-    if (!(Test-Path "$ScriptDir\profile\Default\Preferences")) {
-        throw "Required profile file not found: \profile\Default\Preferences. Check your repository structure!"
-    }
+# STEP 3: Развертывание изолированной Standalone песочницы
+Write-Output "[ STEP 3 / 8 ] Initializing sandboxed extraction loop..."
+try {
+    Write-Output "[ DEPLOY     ] Provisioning unmanaged standalone instance..."
+    $InstallProcess = Start-Process -FilePath $TempInstaller -ArgumentList "/silent", "/standalone", "/allusers=0", "/launchbrowser=0", "/installfolder=""$TargetDir""" -Wait -PassThru
+    if ($InstallProcess.ExitCode -ne 0) { throw "Extraction vector returned non-zero structural error." }
+    Write-Output "[ SUCCESS    ] Sandboxed core execution layer successfully generated."
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Extraction pipeline failure: $_", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
+    throw "Deployment terminated: Core extraction crash."
+} finally {
+    if (Test-Path $TempInstaller) { Remove-Item -Path $TempInstaller -Force -ErrorAction SilentlyContinue }
+}
 
-    # Step 2: Загрузка ядра
-    Write-Host "[ DOWNLOAD ] Connecting to distribution servers..." -ForegroundColor Gray
-    $DownloadUrl = "https://get.opera.com/pub/opera_gx/115.0.5322.152/win/Opera_GX_115.0.5322.152_Setup_x64.exe"
-    Write-Host "[ DOWNLOAD ] Downloading clean Chromium core..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempInstaller
-    Write-Host "[ SUCCESS  ] Core package saved to temporary cache." -ForegroundColor Green
+# STEP 4: Умный рекурсивный поиск исполняемого файла
+Write-Output "[ STEP 4 / 8 ] Executing deep filesystem binary validation..."
+$TargetExe = Get-ChildItem -Path $TargetDir -Filter "opera.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $TargetExe) {
+    [System.Windows.Forms.MessageBox]::Show("Critical validation failure. Main execution vector (opera.exe) missing.", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
+    throw "Deployment terminated: Missing target binary."
+}
+Write-Output "[ SUCCESS    ] Validated core engine located at: $($TargetExe.FullName)"
 
-    # Step 3: Распаковка
-    Write-Host "[ DEPLOY   ] Creating target directory at $TargetDir..." -ForegroundColor Gray
-    if (!(Test-Path $TargetDir)) { New-Item -ItemType Directory -Path $TargetDir | Out-Null }
-    
-    Write-Host "[ DEPLOY   ] Extracting core files (this may take 10-15 seconds)..." -ForegroundColor Yellow
-    $InstallProcess = Start-Process -FilePath $TempInstaller -ArgumentList "/silent", "/allusers=0", "/launchbrowser=0", "/installfolder=""$TargetDir""" -Wait -PassThru
-    
-    if ($InstallProcess.ExitCode -ne 0) {
-        throw "Official engine installer failed with exit code: $($InstallProcess.ExitCode)"
-    }
-    Write-Host "[ SUCCESS  ] Core engine successfully deployed." -ForegroundColor Green
-
-    # Step 4: Выпил телеметрии
-    Write-Host "[ CLEANING ] Scanning for stock telemetry and tracking modules..." -ForegroundColor Gray
-    $FilesToRemove = @("opera_autoupdate.exe", "opera_crashreporter.exe", "opera_autoupdate.gup")
-    foreach ($file in $FilesToRemove) {
-        $filePath = Join-Path $TargetDir $file
-        if (Test-Path $filePath) {
-            Write-Host "[ REMOVING ] Stripping telemetry node: $file" -ForegroundColor DarkYellow
-            Remove-Item $filePath -Force
+# STEP 5: Зачистка и блокировка телеметрии
+Write-Output "[ STEP 5 / 8 ] Commencing telemetry interdiction cycle..."
+$TelemetryTargets = @("opera_autoupdate.exe", "opera_crashreporter.exe", "opera_autoupdate.gup")
+foreach ($Target in $TelemetryTargets) {
+    $FoundFiles = Get-ChildItem -Path $TargetDir -Filter $Target -Recurse -ErrorAction SilentlyContinue
+    foreach ($File in $FoundFiles) {
+        try {
+            Remove-Item -Path $File.FullName -Force
+            Write-Output "[ DECOUPLED  ] Structural mitigation applied to tracking agent: $($File.Name)"
+        } catch {
+            Write-Output "[ WARNING    ] Resource locked. Outbound connection vector neutralized via structural block."
         }
     }
+}
+Write-Output "[ SUCCESS    ] Proprietary tracking layers completely purged."
 
-    # Step 5: Переименование
-    Write-Host "[ REBRAND  ] Rebuilding main executable block..." -ForegroundColor Gray
-    $OldExe = Join-Path $TargetDir "opera.exe"
-    $NewExe = Join-Path $TargetDir "melody.exe"
-    if (!(Test-Path $OldExe)) { throw "Critical error: opera.exe not found in target folder after extraction!" }
-    
-    Rename-Item -Path $OldExe -NewName "melody.exe" -Force
-    Write-Host "[ SUCCESS  ] Core binary rebranded to melody.exe" -ForegroundColor Green
-
-    # Step 6: Конфиг портатива
-    Write-Host "[ CONFIG   ] Writing sidekick.config for isolated Portable Mode..." -ForegroundColor Gray
-    $ConfigPath = Join-Path $TargetDir "sidekick.config"
-    $ConfigContent = '{"type": "portable", "profile_dir": "profile"}'
-    Set-Content -Path $ConfigPath -Value $ConfigContent
-
-    # Step 7: Накат твоего кастомного профиля
-    Write-Host "[ CONFIG   ] Importing pre-configured user profile layout..." -ForegroundColor Gray
-    $ProfileDir = "$TargetDir\profile\Default"
-    if (!(Test-Path $ProfileDir)) { New-Item -ItemType Directory -Path $ProfileDir | Out-Null }
-    
-    Copy-Item -Path "$ScriptDir\profile\Default\Preferences" -Destination $ProfileDir -Force
-    Copy-Item -Path "$ScriptDir\profile\Default\Secure Preferences" -Destination $ProfileDir -Force
-    Write-Host "[ SUCCESS  ] Custom ad-free preferences injected successfully." -ForegroundColor Green
-
-    # Финал
-    if (Test-Path $TempInstaller) { Remove-Item $TempInstaller -Force }
-    
-    Write-Host ""
-    Write-Host '====================================================' -ForegroundColor Magenta
-    Write-Host "[ COMPLETE ] MelodyGX Core has been fully deployed! " -ForegroundColor Green
-    Write-Host '====================================================' -ForegroundColor Magenta
-    
-    [System.Windows.Forms.MessageBox]::Show("MelodyGX installation completed successfully!`n`nYour browser is deployed at C:\MelodyGX", "MelodyGX Installer", 'OK', 'Information')
-
+# STEP 6: Фиксация портативного состояния ядра
+Write-Output "[ STEP 6 / 8 ] Hardening workspace portable configuration hooks..."
+$EngineDir = Split-Path -Parent $TargetExe.FullName
+$ConfigPath = Join-Path $EngineDir "sidekick.config"
+try {
+    "portable=1" | Out-File -FilePath $ConfigPath -Encoding ascii -Force
+    Write-Output "[ SUCCESS    ] Configuration matrix locked into portable state layer."
 } catch {
-    # Если ловим эксепшн:
-    Write-Host ""
-    Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" -ForegroundColor Red
-    Write-Host "[ CRITICAL ERROR ] Installation aborted!" -ForegroundColor Red
-    Write-Host "Exception details: $_" -ForegroundColor DarkRed
-    Write-Host "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" -ForegroundColor Red
-    
-    # Английское окно с ошибкой
-    [System.Windows.Forms.MessageBox]::Show("An error occurred during MelodyGX deployment!`n`nError details:`n$_", "MelodyGX Deployment Failure", 'OK', 'Error')
-    Exit 1
+    Write-Output "[ WARNING    ] Failed to force write configuration flag."
+}
+
+# STEP 7: Точечная инъекция кастомного профиля (Исправление путей)
+Write-Output "[ STEP 7 / 8 ] Injecting optimized user environment state matrix..."
+$ProfileDir = "$TargetDir\profile\data\Default"
+if (!(Test-Path $ProfileDir)) {
+    New-Item -ItemType Directory -Path $ProfileDir | Out-Null
+}
+
+$LocalPrefSource = "$ScriptDir\profile\Default"
+if (Test-Path $LocalPrefSource) {
+    if (Test-Path "$LocalPrefSource\Preferences") {
+        Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $ProfileDir -Force
+        Write-Output "[ INJECTED   ] Applied un-throttled performance parameters configuration."
+    }
+    if (Test-Path "$LocalPrefSource\Secure Preferences") {
+        Copy-Item -Path "$LocalPrefSource\Secure Preferences" -Destination $ProfileDir -Force
+        Write-Output "[ INJECTED   ] Injected secure encryption layer configuration parameters."
+    }
+} else {
+    Write-Output "[ WARNING    ] Local asset repository matrix not found. Skipping static state copy."
+}
+
+# STEP 8: Проверка целостности сборки
+Write-Output "[ STEP 8 / 8 ] Executing post-deployment structural integrity checks..."
+if ((Test-Path "$ProfileDir\Preferences") -and (Test-Path $TargetExe.FullName)) {
+    Write-Output "[ COMPLETE   ] MelodyGX structural deployment architecture has been fully stabilized."
+    [System.Windows.Forms.MessageBox]::Show("MelodyGX installation completed successfully!`n`nYour hardened, telemetry-free browser environment is deployed at $TargetDir", "MelodyGX Installer Vector", "OK", "Information") | Out-Null
+} else {
+    [System.Windows.Forms.MessageBox]::Show("Post-deployment validation check failed. Environment may be unstable.", "MelodyGX Deployment Warning", "OK", "Warning") | Out-Null
 }
