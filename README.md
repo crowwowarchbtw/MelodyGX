@@ -1,8 +1,19 @@
-# MelodyGX: Automated Browser Hardening and Deployment Framework
+<p align="center">
+  <img src="logo.png" alt="MelodyGX Logo" width="140" height="140">
+</p>
 
-MelodyGX is an automated deployment framework designed to provision a hardened, telemetry-free, and strictly isolated instance of a Chromium-based gaming browser environment. The core objective of this project is the complete elimination of corporate tracking vectors, background resource overhead, and unnecessary system dependencies, delivering a highly optimized runtime configuration suitable for low-latency execution environments.
+<h1 align="center">MelodyGX</h1>
 
-Unlike standard application repacks, this framework utilizes a modular automation architecture. It interacts directly with upstream distribution channels to dynamically assemble the target environment on the client machine. This methodology guarantees binary integrity validation while allowing deep structural modifications.
+---
+
+<p align="center">
+  An automated deployment framework for a hardened, telemetry-free, and strictly isolated gaming browser environment.<br>
+  Privacy-first with aggressive background tracking interdiction. No bloat, no corporate noise, optimized for low-latency execution.
+</p>
+
+<p align="center">
+  <a href="https://github.com/crowwowarchbtw/MelodyGX">github.com/crowwowarchbtw/MelodyGX</a>
+</p>
 
 ---
 
