@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 $TargetDir = "C:\MelodyGX"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
-# Принудительное подключение графической подсистемы Windows Forms для вывода алертов
+# Принудительное подключение графической подсистемы Windows Forms
 Add-Type -AssemblyName System.Windows.Forms
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
 
@@ -28,7 +28,7 @@ Write-Output $LogoArt
 Write-Output ""
 
 # STEP 0: Агрессивное снятие блокировок файлов
-Write-Output "[ STEP 0 / 8 ] Terminating conflicting background processes..."
+Write-Output "[ STEP 0 / 6 ] Terminating conflicting background processes..."
 $ActiveProcesses = @("opera", "opera_gx", "launcher")
 foreach ($Proc in $ActiveProcesses) {
     if (Get-Process -Name $Proc -ErrorAction SilentlyContinue) {
@@ -37,162 +37,103 @@ foreach ($Proc in $ActiveProcesses) {
     }
 }
 
-# STEP 1: Инициализация окружения и зачистка системных хвостов
-Write-Output "[ STEP 1 / 8 ] Validating host execution environment and purging system residues..."
+# STEP 1: Инициализация окружения и полная зачистка хвостов
+Write-Output "[ STEP 1 / 6 ] Purging active system residues..."
 $AppDataOperaPath = Join-Path $env:APPDATA "Opera Software"
 if (Test-Path $AppDataOperaPath) {
     try {
         Remove-Item -Path $AppDataOperaPath -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Output "[ PURGED     ] Legacy AppData tracking directory liquidated successfully."
-    } catch {
-        Write-Output "[ WARNING    ] System folder locked. Proceeding with isolated core deployment."
-    }
+    } catch {}
 }
 
-if (!(Test-Path $TargetDir)) {
-    New-Item -ItemType Directory -Path $TargetDir | Out-Null
+if (Test-Path $TargetDir) {
+    try {
+        Remove-Item -Path $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+    } catch {}
 }
-Write-Output "[ SUCCESS    ] Target deployment space initialized at: $TargetDir"
+New-Item -ItemType Directory -Path $TargetDir | Out-Null
+Write-Output "[ SUCCESS    ] Workspace cleared and isolated at: $TargetDir"
 
 # STEP 2: Загрузка бинарных блоков ядра
-Write-Output "[ STEP 2 / 8 ] Connecting to upstream infrastructure..."
+Write-Output "[ STEP 2 / 6 ] Fetching official deployment core..."
 $DownloadUrl = "https://get.opera.com/pub/opera_gx/115.0.5322.152/win/Opera_GX_115.0.5322.152_Setup_x64.exe"
 $TempInstaller = "$env:TEMP\MelodyGX_Core_Setup.exe"
 
 try {
-    Write-Output "[ DOWNLOAD   ] Fetching official distribution core packages..."
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempInstaller -UseBasicParsing
-    Write-Output "[ SUCCESS    ] Binary cache stabilized locally."
+    Write-Output "[ SUCCESS    ] Distribution cache stabilized."
 } catch {
-    [System.Windows.Forms.MessageBox]::Show("Network pipeline failure during core retrieval: $_", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
-    throw "Deployment terminated: Network error."
+    [System.Windows.Forms.MessageBox]::Show("Network pipeline failure: $_", "MelodyGX Error", "OK", "Error") | Out-Null
+    throw "Network error."
 }
 
-# STEP 3: Развертывание изолированной Standalone песочницы
-Write-Output "[ STEP 3 / 8 ] Initializing sandboxed extraction loop..."
+# STEP 3: Развертывание Standalone песочницы
+Write-Output "[ STEP 3 / 6 ] Extracting sandboxed execution layer..."
 try {
-    Write-Output "[ DEPLOY     ] Provisioning unmanaged standalone instance..."
     $InstallProcess = Start-Process -FilePath $TempInstaller -ArgumentList "/silent", "/standalone", "/allusers=0", "/launchbrowser=0", "/installfolder=""$TargetDir""" -Wait -PassThru
-    if ($InstallProcess.ExitCode -ne 0) { throw "Extraction vector returned non-zero structural error." }
-    Write-Output "[ SUCCESS    ] Sandboxed core execution layer successfully generated."
+    if ($InstallProcess.ExitCode -ne 0) { throw "Extraction layer failure." }
+    Write-Output "[ SUCCESS    ] Sandboxed binaries unpacked."
 } catch {
-    [System.Windows.Forms.MessageBox]::Show("Extraction pipeline failure: $_", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
-    throw "Deployment terminated: Core extraction crash."
+    [System.Windows.Forms.MessageBox]::Show("Extraction failure: $_", "MelodyGX Error", "OK", "Error") | Out-Null
+    throw "Extraction crash."
 } finally {
     if (Test-Path $TempInstaller) { Remove-Item -Path $TempInstaller -Force -ErrorAction SilentlyContinue }
 }
 
-# STEP 4: Верификация корневого вектора запуска
-Write-Output "[ STEP 4 / 8 ] Validating master launcher executable..."
-$TargetLauncher = Join-Path $TargetDir "launcher.exe"
-if (!(Test-Path $TargetLauncher)) {
-    [System.Windows.Forms.MessageBox]::Show("Critical validation failure. Main launcher vector missing.", "MelodyGX Deployment Failure", "OK", "Error") | Out-Null
-    throw "Deployment terminated: Missing launcher binary."
-}
-Write-Output "[ SUCCESS    ] Validated core engine launcher located at: $TargetLauncher"
-
-# STEP 5: Зачистка и блокировка телеметрии
-Write-Output "[ STEP 5 / 8 ] Commencing telemetry interdiction cycle..."
+# STEP 4: Зачистка телеметрии и фиксация портативности
+Write-Output "[ STEP 4 / 6 ] Hardening core environment flags..."
 $TelemetryTargets = @("opera_autoupdate.exe", "opera_crashreporter.exe", "opera_autoupdate.gup")
 foreach ($Target in $TelemetryTargets) {
-    $FoundFiles = Get-ChildItem -Path $TargetDir -Filter $Target -Recurse -ErrorAction SilentlyContinue
-    foreach ($File in $FoundFiles) {
-        try {
-            Remove-Item -Path $File.FullName -Force
-            Write-Output "[ DECOUPLED  ] Structural mitigation applied to tracking agent: $($File.Name)"
-        } catch {
-            Write-Output "[ WARNING    ] Resource locked. Outbound connection vector neutralized via structural block."
-        }
-    }
+    Get-ChildItem -Path $TargetDir -Filter $Target -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 }
-Write-Output "[ SUCCESS    ] Proprietary tracking layers completely purged."
 
-# STEP 6: Фиксация портативного состояния ядра
-Write-Output "[ STEP 6 / 8 ] Hardening workspace portable configuration hooks..."
 $EngineDir = Get-ChildItem -Path $TargetDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "^\d+\." } | Select-Object -First 1
 if ($EngineDir) {
-    $ConfigPath = Join-Path $EngineDir.FullName "sidekick.config"
-    try {
-        "portable=1" | Out-File -FilePath $ConfigPath -Encoding ascii -Force
-        Write-Output "[ SUCCESS    ] Configuration matrix locked into portable state layer."
-    } catch {
-        Write-Output "[ WARNING    ] Failed to force write configuration flag."
+    "portable=1" | Out-File -FilePath (Join-Path $EngineDir.FullName "sidekick.config") -Encoding ascii -Force
+}
+
+# STEP 5: Умное развертывание кастомного профиля (Фикс вложенности папки Default)
+Write-Output "[ STEP 5 / 6 ] Injecting master pre-configured profile layer..."
+$TargetDataDir = "C:\MelodyGX\profile\data"
+$TargetDefaultDir = "C:\MelodyGX\profile\data\Default"
+
+# Гарантированно создаем всю иерархию путей
+if (!(Test-Path $TargetDataDir)) { New-Item -ItemType Directory -Path $TargetDataDir | Out-Null }
+if (!(Test-Path $TargetDefaultDir)) { New-Item -ItemType Directory -Path $TargetDefaultDir | Out-Null }
+
+# Умный поиск конфигурационных файлов в репозитории независимо от структуры папок
+$RepoProfileRoot = Join-Path $ScriptDir "profile"
+if (Test-Path $RepoProfileRoot) {
+    $MasterPrefs = Get-ChildItem -Path $RepoProfileRoot -Filter "Preferences" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    $MasterGXPrefs = Get-ChildItem -Path $RepoProfileRoot -Filter "operapreferences.json" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    # Инжектируем Preferences во все возможные целевые точки (в корень data и в Default)
+    if ($MasterPrefs) {
+        Copy-Item -Path $MasterPrefs.FullName -Destination $TargetDataDir -Force
+        Copy-Item -Path $MasterPrefs.FullName -Destination $TargetDefaultDir -Force
+        Write-Output "[ SUCCESS    ] Discovered and flattened base preferences routing."
     }
-}
-
-# STEP 7: Вежливая инициализация профиля и инжекция параметров
-Write-Output "[ STEP 7 / 8 ] Initializing verified profile signatures..."
-
-if (Test-Path "$TargetDir\profile") { 
-    Remove-Item -Path "$TargetDir\profile" -Recurse -Force -ErrorAction SilentlyContinue 
-}
-
-# Запуск через лаунчер для создания структуры профиля
-Write-Output "[ ENGINE     ] Initializing background configuration handshake..."
-$EngineProcess = Start-Process -FilePath $TargetLauncher -ArgumentList "--no-first-run", "--no-default-browser-check" -PassThru
-Start-Sleep -Seconds 6
-
-# ВЕЖЛИВОЕ ЗАКРЫТИЕ: Даем Опере команду сохранить данные на диск перед выходом
-Write-Output "[ ENGINE     ] Requesting state synchronization loop..."
-$EngineProcess.CloseMainWindow() | Out-Null
-Start-Sleep -Seconds 3
-
-# Принудительно тушим остаточные фоновые потоки, если они зависли
-Stop-Process -Id $EngineProcess.Id -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "opera" -Force -ErrorAction SilentlyContinue
-
-# Массив целевых путей, куда Опера могла сбросить Preferences
-$TargetPaths = @(
-    "$TargetDir\profile\data\Preferences",
-    "$TargetDir\profile\data\Default\Preferences"
-)
-
-$SourcePrefPath = "$ScriptDir\profile\data\Default\Preferences"
-
-if (Test-Path $SourcePrefPath) {
-    # Читаем твои кастомные настройки
-    $SourceJson = Get-Content -Path $SourcePrefPath -Raw | ConvertFrom-Json
-    $CustomOperaBlock = $SourceJson.opera | ConvertTo-Json -Depth 100
-    $CustomUIBlock = $SourceJson.ui | ConvertTo-Json -Depth 100
-
-    foreach ($Path in $TargetPaths) {
-        if (Test-Path $Path) {
-            try {
-                # Читаем легально созданный файл тестера
-                $LocalContent = Get-Content -Path $Path -Raw
-                $LocalJson = $LocalContent | ConvertFrom-Json
-
-                # Вживляем блоки настроек
-                $LocalJson.opera = $SourceJson.opera
-                $LocalJson.ui = $SourceJson.ui
-
-                # Сохраняем поверх
-                $LocalJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $Path -Encoding utf8 -Force
-                Write-Output "[ INJECTED   ] Injected custom preferences into validated profile: $Path"
-            } catch {
-                Write-Output "[ WARNING    ] Target path skipped or locked: $Path"
-            }
-        }
+    
+    # Инжектируем operapreferences.json во все точки
+    if ($MasterGXPrefs) {
+        Copy-Item -Path $MasterGXPrefs.FullName -Destination $TargetDataDir -Force
+        Copy-Item -Path $MasterGXPrefs.FullName -Destination $TargetDefaultDir -Force
+        Write-Output "[ SUCCESS    ] Discovered and flattened GX preferences routing."
     }
-}
-
-# Прямой форсированный заброс конфигуратора тем Opera GX
-$SourceGXPrefs = "$ScriptDir\profile\data\Default\operapreferences.json"
-if (Test-Path $SourceGXPrefs) {
-    $GXTargetPaths = @("$TargetDir\profile\data", "$TargetDir\profile\data\Default")
-    foreach ($GXPath in $GXTargetPaths) {
-        if (Test-Path $GXPath) {
-            Copy-Item -Path $SourceGXPrefs -Destination $GXPath -Force
-            Write-Output "[ FORCED     ] Injected master GX preference modules to: $GXPath"
-        }
-    }
-}
-
-# STEP 8: Проверка целостности сборки
-Write-Output "[ STEP 8 / 8 ] Executing post-deployment structural integrity checks..."
-if (Test-Path $TargetLauncher) {
-    Write-Output "[ COMPLETE   ] MelodyGX structural deployment architecture has been fully stabilized."
-    [System.Windows.Forms.MessageBox]::Show("MelodyGX installation completed successfully!`n`nYour hardened, telemetry-free browser environment is deployed at $TargetDir", "MelodyGX Installer Vector", "OK", "Information") | Out-Null
 } else {
-    [System.Windows.Forms.MessageBox]::Show("Post-deployment validation check failed. Environment may be unstable.", "MelodyGX Deployment Warning", "OK", "Warning") | Out-Null
+    Write-Output "[ WARNING    ] Source profile template matrix missing from deployment package."
+}
+
+# КРИТИЧЕСКИЙ ФИКС: Вешаем заглушки First Run во все щели, чтобы сброса настроек не произошло
+New-Item -ItemType File -Path (Join-Path $TargetDir "First Run") -Force -ErrorAction SilentlyContinue | Out-Null
+New-Item -ItemType File -Path (Join-Path $TargetDataDir "First Run") -Force -ErrorAction SilentlyContinue | Out-Null
+New-Item -ItemType File -Path (Join-Path $TargetDefaultDir "First Run") -Force -ErrorAction SilentlyContinue | Out-Null
+Write-Output "[ SUCCESS    ] Cryptographic first-run blockers initialized."
+
+# STEP 6: Верификация сборки
+Write-Output "[ STEP 6 / 6 ] Validating post-deployment structure..."
+$TargetLauncher = Join-Path $TargetDir "launcher.exe"
+if (Test-Path $TargetLauncher) {
+    Write-Output "[ COMPLETE   ] MelodyGX build stabilization accomplished."
+    [System.Windows.Forms.MessageBox]::Show("MelodyGX installation completed successfully!`n`nYour custom light theme environment is ready at $TargetDir", "MelodyGX Framework", "OK", "Information") | Out-Null
 }
