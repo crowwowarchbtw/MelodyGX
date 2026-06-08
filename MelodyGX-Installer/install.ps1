@@ -20,6 +20,7 @@ $LogoArt = @"
                              /____/                 
 =====================================================================
                      OFFICIAL PORTABLE INSTALLER
+              https://github.com/crowwowarchbtw/MelodyGX
 =====================================================================
 "@
 
@@ -97,54 +98,35 @@ try {
     Write-Output "[ WARNING    ] Failed to force write configuration flag."
 }
 
-# STEP 7: Точечная инъекция кастомного профиля с обходом аппаратной привязки super_mac
-Write-Output "[ STEP 7 / 8 ] Injecting optimized user environment state matrix..."
-$ProfileDataDir = "$TargetDir\profile\data"
-$ProfileDefaultDir = "$TargetDir\profile\data\Default"
+# STEP 7: Развертывание глобальных master-шаблонов конфигурации
+Write-Output "[ STEP 7 / 8 ] Deploying global master preference templates..."
 
-if (!(Test-Path $ProfileDataDir)) { New-Item -ItemType Directory -Path $ProfileDataDir | Out-Null }
-if (!(Test-Path $ProfileDefaultDir)) { New-Item -ItemType Directory -Path $ProfileDefaultDir | Out-Null }
-
-# Принудительно уничтожаем любые чужие файлы аппаратной защиты во избежание сброса профиля
-if (Test-Path "$ProfileDataDir\Secure Preferences") { Remove-Item "$ProfileDataDir\Secure Preferences" -Force }
-if (Test-Path "$ProfileDefaultDir\Secure Preferences") { Remove-Item "$ProfileDefaultDir\Secure Preferences" -Force }
+# Принудительно зачищаем старый профиль, чтобы Опера перегенерировала его с чистого листа
+if (Test-Path "$TargetDir\profile") {
+    Remove-Item -Path "$TargetDir\profile" -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 $LocalPrefSource = "$ScriptDir\profile\data\Default"
-
-if (Test-Path $LocalPrefSource) {
-    if (Test-Path "$LocalPrefSource\Preferences") {
-        # Копируем только чистый Preferences
-        Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $ProfileDataDir -Force
-        Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $ProfileDefaultDir -Force
-        
-        # Обход защиты: Парсим JSON и полностью вырезаем привязку к чужому железу
-        $TargetPaths = @("$ProfileDataDir\Preferences", "$ProfileDefaultDir\Preferences")
-        foreach ($Path in $TargetPaths) {
-            if (Test-Path $Path) {
-                try {
-                    $Content = Get-Content -Path $Path -Raw -ErrorAction SilentlyContinue
-                    if ($Content) {
-                        $Json = $Content | ConvertFrom-Json
-                        if ($Json.PSObject.Properties.Name -contains "protection") {
-                            $Json.PSObject.Properties.Remove("protection")
-                            $Json | ConvertTo-Json -Depth 100 | Out-File -FilePath $Path -Encoding utf8 -Force
-                            Write-Output "[ UNBOUND    ] Machine-specific hardware signature purged from: $Path"
-                        }
-                    }
-                } catch {
-                    Write-Output "[ WARNING    ] Failed to patch JSON protection blocks."
-                }
-            }
-        }
-        Write-Output "[ SUCCESS    ] Un-throttled performance configuration successfully injected."
+if (Test-Path "$LocalPrefSource\Preferences") {
+    # Клонируем файл настроек под именами системных шаблонов во все ключевые папки программы
+    $TargetPaths = @(
+        "$TargetDir\initial_preferences",
+        "$TargetDir\master_preferences",
+        "$EngineDir\initial_preferences",
+        "$EngineDir\master_preferences"
+    )
+    
+    foreach ($Path in $TargetPaths) {
+        Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $Path -Force
+        Write-Output "[ PROVISIONED ] Master template locked at: $Path"
     }
 } else {
-    Write-Output "[ WARNING    ] Local asset repository matrix not found. Skipping profile injection."
+    Write-Output "[ WARNING    ] Source template missing. Deployment running on stock presets."
 }
 
 # STEP 8: Проверка целостности сборки
 Write-Output "[ STEP 8 / 8 ] Executing post-deployment structural integrity checks..."
-if ((Test-Path "$ProfileDataDir\Preferences") -and (Test-Path $TargetExe.FullName)) {
+if (Test-Path $TargetExe.FullName) {
     Write-Output "[ COMPLETE   ] MelodyGX structural deployment architecture has been fully stabilized."
     [System.Windows.Forms.MessageBox]::Show("MelodyGX installation completed successfully!`n`nYour hardened, telemetry-free browser environment is deployed at $TargetDir", "MelodyGX Installer Vector", "OK", "Information") | Out-Null
 } else {
