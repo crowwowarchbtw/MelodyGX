@@ -39,8 +39,6 @@ foreach ($Proc in $ActiveProcesses) {
 
 # STEP 1: Инициализация окружения и зачистка системных хвостов
 Write-Output "[ STEP 1 / 8 ] Validating host execution environment and purging system residues..."
-
-# Выжигание глобальной папки Оперы в Roaming AppData во избежание конфликта сигнатур
 $AppDataOperaPath = Join-Path $env:APPDATA "Opera Software"
 if (Test-Path $AppDataOperaPath) {
     try {
@@ -122,22 +120,28 @@ if ($EngineDir) {
     }
 }
 
-# STEP 7: Инициализация реального портативного профиля и хирургический патч JSON
-Write-Output "[ STEP 7 / 8 ] Executing authentic portable profile generation and injection..."
+# STEP 7: Вежливая инициализация профиля и инжекция параметров
+Write-Output "[ STEP 7 / 8 ] Initializing verified profile signatures..."
 
 if (Test-Path "$TargetDir\profile") { 
     Remove-Item -Path "$TargetDir\profile" -Recurse -Force -ErrorAction SilentlyContinue 
 }
 
-# Запуск ЧЕРЕЗ LAUNCHER для генерации правильного локального профиля в папке C:\MelodyGX\profile
-Write-Output "[ ENGINE     ] Launching master infrastructure to sign local cryptographic signatures..."
+# Запуск через лаунчер для создания структуры профиля
+Write-Output "[ ENGINE     ] Initializing background configuration handshake..."
 $EngineProcess = Start-Process -FilePath $TargetLauncher -ArgumentList "--no-first-run", "--no-default-browser-check" -PassThru
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 6
+
+# ВЕЖЛИВОЕ ЗАКРЫТИЕ: Даем Опере команду сохранить данные на диск перед выходом
+Write-Output "[ ENGINE     ] Requesting state synchronization loop..."
+$EngineProcess.CloseMainWindow() | Out-Null
+Start-Sleep -Seconds 3
+
+# Принудительно тушим остаточные фоновые потоки, если они зависли
 Stop-Process -Id $EngineProcess.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "opera" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "launcher" -Force -ErrorAction SilentlyContinue
 
-# Массив потенциальных путей хранения настроек внутри портативки
+# Массив целевых путей, куда Опера могла сбросить Preferences
 $TargetPaths = @(
     "$TargetDir\profile\data\Preferences",
     "$TargetDir\profile\data\Default\Preferences"
@@ -146,27 +150,33 @@ $TargetPaths = @(
 $SourcePrefPath = "$ScriptDir\profile\data\Default\Preferences"
 
 if (Test-Path $SourcePrefPath) {
+    # Читаем твои кастомные настройки
     $SourceJson = Get-Content -Path $SourcePrefPath -Raw | ConvertFrom-Json
-    
+    $CustomOperaBlock = $SourceJson.opera | ConvertTo-Json -Depth 100
+    $CustomUIBlock = $SourceJson.ui | ConvertTo-Json -Depth 100
+
     foreach ($Path in $TargetPaths) {
         if (Test-Path $Path) {
             try {
-                $LocalJson = Get-Content -Path $Path -Raw | ConvertFrom-Json
-                
-                # Инжектируем только безопасные блоки кастомизации
-                if ($SourceJson.opera) { $LocalJson.opera = $SourceJson.opera }
-                if ($SourceJson.ui) { $LocalJson.ui = $SourceJson.ui }
-                
+                # Читаем легально созданный файл тестера
+                $LocalContent = Get-Content -Path $Path -Raw
+                $LocalJson = $LocalContent | ConvertFrom-Json
+
+                # Вживляем блоки настроек
+                $LocalJson.opera = $SourceJson.opera
+                $LocalJson.ui = $SourceJson.ui
+
+                # Сохраняем поверх
                 $LocalJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $Path -Encoding utf8 -Force
-                Write-Output "[ INJECTED   ] Successfully patched custom preferences state at: $Path"
+                Write-Output "[ INJECTED   ] Injected custom preferences into validated profile: $Path"
             } catch {
-                Write-Output "[ WARNING    ] Failed to patch target json node: $Path"
+                Write-Output "[ WARNING    ] Target path skipped or locked: $Path"
             }
         }
     }
 }
 
-# Прямой форсированный заброс вспомогательного конфигуратора тем Opera GX
+# Прямой форсированный заброс конфигуратора тем Opera GX
 $SourceGXPrefs = "$ScriptDir\profile\data\Default\operapreferences.json"
 if (Test-Path $SourceGXPrefs) {
     $GXTargetPaths = @("$TargetDir\profile\data", "$TargetDir\profile\data\Default")
