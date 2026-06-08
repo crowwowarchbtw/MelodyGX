@@ -108,38 +108,44 @@ try {
     Write-Output "[ WARNING    ] Failed to force write configuration flag."
 }
 
-# STEP 7: Принудительный силовой инжект кастомного профиля
-Write-Output "[ STEP 7 / 8 ] Overwriting stock configuration matrices..."
-$ProfileDataDir = "$TargetDir\profile\data"
-$ProfileDefaultDir = "$TargetDir\profile\data\Default"
+# STEP 7: Инициализация локального профиля и хирургический патч конфигурации
+Write-Output "[ STEP 7 / 8 ] Executing local profile generation and surgical injection..."
 
-# Принудительно создаем пути, если инсталлятор их пропустил
-if (!(Test-Path $ProfileDataDir)) { New-Item -ItemType Directory -Path $ProfileDataDir | Out-Null }
-if (!(Test-Path $ProfileDefaultDir)) { New-Item -ItemType Directory -Path $ProfileDefaultDir | Out-Null }
+# Принудительно сносим старые следы, чтобы запуск был кристально чистым
+if (Test-Path "$TargetDir\profile") { Remove-Item -Path "$TargetDir\profile" -Recurse -Force -ErrorAction SilentlyContinue }
 
-# Источник файлов внутри твоего установщика
-$LocalSourceDir = "$ScriptDir\profile\data\Default"
+# Вызываем кратковременный запуск ядра для генерации валидных локальных сигнатур защиты
+Write-Output "[ ENGINE     ] Launching core engine to sign cryptographic profile signatures..."
+$EngineProcess = Start-Process -FilePath $TargetExe.FullName -ArgumentList "--no-first-run", "--no-default-browser-check" -PassThru
+Start-Sleep -Seconds 4
+Stop-Process -Id $EngineProcess.Id -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "opera" -Force -ErrorAction SilentlyContinue
 
-if (Test-Path $LocalSourceDir) {
-    # Собираем список всех файлов конфигурации (Preferences, operapreferences.json и т.д.)
-    $ConfigFiles = Get-ChildItem -Path $LocalSourceDir -File -ErrorAction SilentlyContinue
-    
-    foreach ($File in $ConfigFiles) {
-        try {
-            # Выжигаем стоковые файлы, сгенерированные инсталлятором при установке
-            if (Test-Path "$ProfileDataDir\$($File.Name)") { Remove-Item "$ProfileDataDir\$($File.Name)" -Force }
-            if (Test-Path "$ProfileDefaultDir\$($File.Name)") { Remove-Item "$ProfileDefaultDir\$($File.Name)" -Force }
-            
-            # Сажаем твои кастомные файлы конфигурации на их места
-            Copy-Item -Path $File.FullName -Destination $ProfileDataDir -Force
-            Copy-Item -Path $File.FullName -Destination $ProfileDefaultDir -Force
-            Write-Output "[ FORCED     ] Injected master asset into profile matrix: $($File.Name)"
-        } catch {
-            Write-Output "[ ERROR      ] Failed to overwrite active layout token: $($File.Name)"
-        }
+$LocalPrefPath = "$TargetDir\profile\data\Preferences"
+$SourcePrefPath = "$ScriptDir\profile\data\Default\Preferences"
+
+if ((Test-Path $LocalPrefPath) -and (Test-Path $SourcePrefPath)) {
+    try {
+        $LocalJson = Get-Content -Path $LocalPrefPath -Raw | ConvertFrom-Json
+        $SourceJson = Get-Content -Path $SourcePrefPath -Raw | ConvertFrom-Json
+
+        # Переносим только безопасные кастомизационные блоки (темы, UI, настройки GX)
+        if ($SourceJson.opera) { $LocalJson.opera = $SourceJson.opera }
+        if ($SourceJson.ui) { $LocalJson.ui = $SourceJson.ui }
+        
+        # Записываем модифицированный конфиг обратно в экосистему тестера
+        $LocalJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $LocalPrefPath -Encoding utf8 -Force
+        Write-Output "[ SUCCESS    ] Injected visual themes and performance flags into authentic local profile."
+    } catch {
+        Write-Output "[ WARNING    ] Surgical JSON injection failed: $_"
     }
-} else {
-    Write-Output "[ WARNING    ] Local asset repository matrix not found. Running stock profile loop."
+}
+
+# Инжектируем вспомогательный файл настроек Opera GX, если он поставляется в репозитории
+$SourceGXPrefs = "$ScriptDir\profile\data\Default\operapreferences.json"
+if (Test-Path $SourceGXPrefs) {
+    Copy-Item -Path $SourceGXPrefs -Destination "$TargetDir\profile\data" -Force
+    Write-Output "[ SUCCESS    ] Injected global GX preference profiles."
 }
 
 # STEP 8: Проверка целостности сборки
