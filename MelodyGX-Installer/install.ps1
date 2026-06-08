@@ -27,6 +27,16 @@ $LogoArt = @"
 Write-Output $LogoArt
 Write-Output ""
 
+# STEP 0: Агрессивное снятие блокировок файлов
+Write-Output "[ STEP 0 / 8 ] Terminating conflicting background processes..."
+$ActiveProcesses = @("opera", "opera_gx", "launcher")
+foreach ($Proc in $ActiveProcesses) {
+    if (Get-Process -Name $Proc -ErrorAction SilentlyContinue) {
+        Stop-Process -Name $Proc -Force -ErrorAction SilentlyContinue
+        Write-Output "[ KILLED     ] Subsystem process terminated: $Proc"
+    }
+}
+
 # STEP 1: Инициализация окружения
 Write-Output "[ STEP 1 / 8 ] Validating host execution environment..."
 if (!(Test-Path $TargetDir)) {
@@ -98,30 +108,38 @@ try {
     Write-Output "[ WARNING    ] Failed to force write configuration flag."
 }
 
-# STEP 7: Развертывание глобальных master-шаблонов конфигурации
-Write-Output "[ STEP 7 / 8 ] Deploying global master preference templates..."
+# STEP 7: Принудительный силовой инжект кастомного профиля
+Write-Output "[ STEP 7 / 8 ] Overwriting stock configuration matrices..."
+$ProfileDataDir = "$TargetDir\profile\data"
+$ProfileDefaultDir = "$TargetDir\profile\data\Default"
 
-# Принудительно зачищаем старый профиль, чтобы Опера перегенерировала его с чистого листа
-if (Test-Path "$TargetDir\profile") {
-    Remove-Item -Path "$TargetDir\profile" -Recurse -Force -ErrorAction SilentlyContinue
-}
+# Принудительно создаем пути, если инсталлятор их пропустил
+if (!(Test-Path $ProfileDataDir)) { New-Item -ItemType Directory -Path $ProfileDataDir | Out-Null }
+if (!(Test-Path $ProfileDefaultDir)) { New-Item -ItemType Directory -Path $ProfileDefaultDir | Out-Null }
 
-$LocalPrefSource = "$ScriptDir\profile\data\Default"
-if (Test-Path "$LocalPrefSource\Preferences") {
-    # Клонируем файл настроек под именами системных шаблонов во все ключевые папки программы
-    $TargetPaths = @(
-        "$TargetDir\initial_preferences",
-        "$TargetDir\master_preferences",
-        "$EngineDir\initial_preferences",
-        "$EngineDir\master_preferences"
-    )
+# Источник файлов внутри твоего установщика
+$LocalSourceDir = "$ScriptDir\profile\data\Default"
+
+if (Test-Path $LocalSourceDir) {
+    # Собираем список всех файлов конфигурации (Preferences, operapreferences.json и т.д.)
+    $ConfigFiles = Get-ChildItem -Path $LocalSourceDir -File -ErrorAction SilentlyContinue
     
-    foreach ($Path in $TargetPaths) {
-        Copy-Item -Path "$LocalPrefSource\Preferences" -Destination $Path -Force
-        Write-Output "[ PROVISIONED ] Master template locked at: $Path"
+    foreach ($File in $ConfigFiles) {
+        try {
+            # Выжигаем стоковые файлы, сгенерированные инсталлятором при установке
+            if (Test-Path "$ProfileDataDir\$($File.Name)") { Remove-Item "$ProfileDataDir\$($File.Name)" -Force }
+            if (Test-Path "$ProfileDefaultDir\$($File.Name)") { Remove-Item "$ProfileDefaultDir\$($File.Name)" -Force }
+            
+            # Сажаем твои кастомные файлы конфигурации на их места
+            Copy-Item -Path $File.FullName -Destination $ProfileDataDir -Force
+            Copy-Item -Path $File.FullName -Destination $ProfileDefaultDir -Force
+            Write-Output "[ FORCED     ] Injected master asset into profile matrix: $($File.Name)"
+        } catch {
+            Write-Output "[ ERROR      ] Failed to overwrite active layout token: $($File.Name)"
+        }
     }
 } else {
-    Write-Output "[ WARNING    ] Source template missing. Deployment running on stock presets."
+    Write-Output "[ WARNING    ] Local asset repository matrix not found. Running stock profile loop."
 }
 
 # STEP 8: Проверка целостности сборки
