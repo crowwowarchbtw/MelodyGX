@@ -48,9 +48,3 @@ By replacing default configuration matrices with a tailored, ad-free `Preference
 4. Execute the initialization vector by double-clicking the **`run.bat`** file.
 
 > **System Execution Note:** The `run.bat` vector explicitly bypasses restrictive default Windows execution policies using the `-ExecutionPolicy Bypass` flag. This facilitates an isolated runtime state for the PowerShell installer without altering the global security posture of the host operating system.
-
----
-
-## Licensing and Liability Disclaimer
-
-This framework is open-source software open for public distribution, modification, and integration under the terms of the **MIT License**. For extensive legal terminology, refer directly to the `LICENSE` document located within the root directory of this repository.
